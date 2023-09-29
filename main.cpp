@@ -5,8 +5,24 @@
 #include "player.h"
 
 using namespace std::chrono_literals;
+int initialPlayerPositionX = 64;
+int initialPlayerPositionY = 64 + 128;
 
-Player player(64,64 + 128);
+int ballLarge = 16;
+int ballTall = 16;
+int initialBallPositionX = 320 - (ballLarge/2);
+int initialBallPositionY = 256 - (ballTall/2);
+int ballSpeed = 8;
+bool ballDirection = false; //false -> balls coming2u
+int ballX = initialBallPositionX;
+int ballY = initialBallPositionY;
+
+Player player(initialPlayerPositionX,initialPlayerPositionY);
+bool reset = false;
+
+bool touchTheBall();
+
+void ballsLogicTick();
 
 void renderTick(SDL_Renderer *renderer, SDL_Window *window) {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
@@ -21,6 +37,9 @@ void renderTick(SDL_Renderer *renderer, SDL_Window *window) {
     SDL_RenderDrawLine(renderer,0,0,0,actualHeight);//left
     SDL_RenderDrawLine(renderer,actualWidth-1,0,actualWidth-1,actualHeight);//right
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+
+    SDL_RenderDrawLine(renderer,0,0,actualWidth,actualHeight);
+    SDL_RenderDrawLine(renderer,0,actualHeight,actualWidth,0);
     for (int i = 0; i < actualWidth; ++i) {
         if(i % 64 == 0){
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
@@ -48,14 +67,50 @@ void renderTick(SDL_Renderer *renderer, SDL_Window *window) {
     //endDrawEnemy
 
     //Draw ball
-    SDL_Rect ball = {320,320,16,16};
+    SDL_Rect ball = {ballX,ballY,ballLarge,ballTall};
     SDL_RenderFillRect(renderer, &ball);
     //end Draw ball
 }
 
 void logicTick() {
+    if(reset){
+        reset = false;
+        player.playerXposition = initialPlayerPositionX;
+        player.playerYposition = initialPlayerPositionY;
+
+    }
     //playerLogic
     player.PlayerTick();
+    //if ball intersection player -> bounds
+    if(touchTheBall()){
+        ballDirection = !ballDirection;
+    }
+    ballsLogicTick();
+
+}
+
+void ballsLogicTick() {
+    if(ballDirection){
+        ballX = ballX + ballSpeed;
+    }else{
+        ballX = ballX - ballSpeed;
+    }
+}
+
+//playerTouchBall
+bool touchTheBall() {
+    int x1 = player.playerXposition;
+    int y1 = player.playerYposition;
+    int w1 = player.playerWidth;
+    int h1 = player.playerHeight;
+    int x2 = ballX;
+    int y2 = ballY;
+    int w2 = ballLarge;
+    int h2 = ballTall;
+    if ((x1 + w1) >= x2 && ((y1+h1) >= y2 && y2 > y1)) { //see the png to not forget
+        return true;
+    }
+    return false;
 }
 
 int main(int argc, char** argv) {
@@ -83,6 +138,13 @@ int main(int argc, char** argv) {
                     }
                     if(e.key.keysym.sym == SDLK_DOWN || e.key.keysym.sym == SDLK_s){
                         player.Move(2);
+                    }
+                    if(e.key.keysym.sym == SDLK_SPACE){
+                        reset = true;
+                        ballDirection = !ballDirection;
+                    }
+                    if(e.key.keysym.sym == SDLK_TAB){
+                        ballDirection = !ballDirection;
                     }
                     break;
                 case SDL_KEYUP:
