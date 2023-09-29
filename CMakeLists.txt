@@ -20,6 +20,8 @@ CPMAddPackage(
 
 
 
-add_executable(pong main.cpp)
+add_executable(pong main.cpp
+        player.h
+        player.cpp)
 target_link_libraries(pong SDL2::SDL2)
 
