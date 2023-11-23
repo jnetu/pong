@@ -3,10 +3,14 @@
 #include <chrono>
 #include <iostream>
 #include "player.h"
+#include "enemy.h"
 
 using namespace std::chrono_literals;
 int initialPlayerPositionX = 64;
 int initialPlayerPositionY = 64 + 128;
+int initialEnemyPositionX = 64;
+int initialEnemyPositionY = 64 + 128;
+
 
 int ballLarge = 16;
 int ballTall = 16;
@@ -18,6 +22,8 @@ int ballX = initialBallPositionX;
 int ballY = initialBallPositionY;
 
 Player player(initialPlayerPositionX,initialPlayerPositionY);
+Enemy enemy(initialEnemyPositionX,initialEnemyPositionY);
+
 bool reset = false;
 
 bool touchTheBall();
@@ -60,10 +66,7 @@ void renderTick(SDL_Renderer *renderer, SDL_Window *window) {
     //endDrawPLayer
 
     //drawEnemy
-    //set color white
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_Rect rE = {640 - 64 - 32,64 + 128,32,128};
-    SDL_RenderFillRect(renderer, &rE);
+    enemy.EnemyRender(renderer,window);
     //endDrawEnemy
 
     //Draw ball
@@ -81,6 +84,11 @@ void logicTick() {
     }
     //playerLogic
     player.PlayerTick();
+
+    //enemyLogic
+    enemy.EnemyTick();
+
+
     //if ball intersection player -> bounds
     if(touchTheBall()){
         ballDirection = !ballDirection;
