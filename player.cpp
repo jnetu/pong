@@ -1,7 +1,3 @@
-//
-// Created by j_net on 9/28/2023.
-//
-
 #include "player.h"
 
 

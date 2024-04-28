@@ -1,11 +1,8 @@
-//
-// Created by j_net on 11/23/2023.
-//
-
 #ifndef PONG_ENEMY_H
 #define PONG_ENEMY_H
 
 #include "SDL_render.h"
+#include "Ball.h"
 
 class Enemy{
 public:
@@ -16,12 +13,13 @@ public:
     int enemyYposition;
     bool enemyMoveUP;
     bool enemyMoveDOWN;
+    Ball referenceBall;
 
-    Enemy(int x, int y);
+    Enemy(int x, int y, Ball referenceBall);
 
     void EnemyRender(SDL_Renderer *renderer, SDL_Window *window);
 
-    void EnemyTick();
+    void EnemyTick(Ball ball);
 };
 
 

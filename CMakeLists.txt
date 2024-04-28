@@ -24,6 +24,8 @@ add_executable(pong main.cpp
         player.h
         player.cpp
         enemy.h
-        enemy.cpp)
+        enemy.cpp
+        Ball.cpp
+        Ball.h)
 target_link_libraries(pong SDL2::SDL2)
 

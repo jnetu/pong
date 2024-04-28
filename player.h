@@ -1,7 +1,3 @@
-//
-// Created by j_net on 9/28/2023.
-//
-
 #ifndef PONG_PLAYER_H
 #define PONG_PLAYER_H
 

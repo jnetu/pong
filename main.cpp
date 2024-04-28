@@ -4,62 +4,42 @@
 #include <iostream>
 #include "player.h"
 #include "enemy.h"
+#include "Ball.h"
 
 using namespace std::chrono_literals;
 int initialPlayerPositionX = 64;
 int initialPlayerPositionY = 64 + 128;
-int initialEnemyPositionX = 64;
+int initialEnemyPositionX = 640 - 64 - 32;
 int initialEnemyPositionY = 64 + 128;
-
 
 int ballLarge = 16;
 int ballTall = 16;
 int initialBallPositionX = 320 - (ballLarge/2);
 int initialBallPositionY = 256 - (ballTall/2);
-int ballSpeed = 8;
+int ballSpeedX = 8;
+int ballSpeedY = 8;
 bool ballDirection = false; //false -> balls coming2u
 int ballX = initialBallPositionX;
 int ballY = initialBallPositionY;
 
-Player player(initialPlayerPositionX,initialPlayerPositionY);
-Enemy enemy(initialEnemyPositionX,initialEnemyPositionY);
+int point = 0;
+int enemyPoint = 0;
 
+
+Ball ball(initialBallPositionX,initialBallPositionY);
+Player player(initialPlayerPositionX,initialPlayerPositionY);
+Enemy enemy(initialEnemyPositionX, initialEnemyPositionY, ball);
+
+enum class state { start, gameover, playing, reset };
+std::string STATE = "start";
 bool reset = false;
 
 bool touchTheBall();
-
+bool enemyTouchTheBall();
 void ballsLogicTick();
 
 void renderTick(SDL_Renderer *renderer, SDL_Window *window) {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-
-    /*SDL_Rect r = {0,0,100,100};
-    SDL_RenderFillRect(renderer, &r);*/
-    //draw graphic lines
-    int actualWidth = SDL_GetWindowSurface(window)->w;
-    int actualHeight = SDL_GetWindowSurface(window)->h;
-    SDL_RenderDrawLine(renderer,0,0,actualWidth,0); //up
-    SDL_RenderDrawLine(renderer,0,actualHeight-1,actualWidth,actualHeight -1); //down
-    SDL_RenderDrawLine(renderer,0,0,0,actualHeight);//left
-    SDL_RenderDrawLine(renderer,actualWidth-1,0,actualWidth-1,actualHeight);//right
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-
-    SDL_RenderDrawLine(renderer,0,0,actualWidth,actualHeight);
-    SDL_RenderDrawLine(renderer,0,actualHeight,actualWidth,0);
-    for (int i = 0; i < actualWidth; ++i) {
-        if(i % 64 == 0){
-            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-            SDL_RenderDrawLine(renderer,i,0,i,10);
-            SDL_RenderDrawLine(renderer,i,actualHeight,i,actualHeight-10);
-        }
-    }
-    for (int i = 0; i < actualHeight; ++i) {
-        if(i % 64 == 0){
-            SDL_RenderDrawLine(renderer,0,i,10,i);
-            SDL_RenderDrawLine(renderer,actualWidth,i,actualWidth-10,i);
-        }
-    }
-    //end draw graphic lines
 
     //drawPlayer
     player.PlayerRender(renderer, window);
@@ -70,39 +50,30 @@ void renderTick(SDL_Renderer *renderer, SDL_Window *window) {
     //endDrawEnemy
 
     //Draw ball
-    SDL_Rect ball = {ballX,ballY,ballLarge,ballTall};
-    SDL_RenderFillRect(renderer, &ball);
+    ball.BallRender(renderer, window);
     //end Draw ball
 }
 
 void logicTick() {
-    if(reset){
-        reset = false;
-        player.playerXposition = initialPlayerPositionX;
-        player.playerYposition = initialPlayerPositionY;
+    if(STATE == "start"){
 
+        player.PlayerTick();
+        enemy.enemyXposition = initialEnemyPositionX;
+        enemy.enemyYposition = initialEnemyPositionY;
+        ball.ballX = initialBallPositionX;
+        ball.ballY = initialBallPositionY;
     }
-    //playerLogic
-    player.PlayerTick();
 
-    //enemyLogic
-    enemy.EnemyTick();
+    if(STATE == "playing"){
+        player.PlayerTick();
 
+        //enemyLogic
+        enemy.EnemyTick(ball);
 
-    //if ball intersection player -> bounds
-    if(touchTheBall()){
-        ballDirection = !ballDirection;
+        //ballLogic
+        ballsLogicTick();
     }
-    ballsLogicTick();
 
-}
-
-void ballsLogicTick() {
-    if(ballDirection){
-        ballX = ballX + ballSpeed;
-    }else{
-        ballX = ballX - ballSpeed;
-    }
 }
 
 //playerTouchBall
@@ -111,15 +82,72 @@ bool touchTheBall() {
     int y1 = player.playerYposition;
     int w1 = player.playerWidth;
     int h1 = player.playerHeight;
-    int x2 = ballX;
-    int y2 = ballY;
-    int w2 = ballLarge;
-    int h2 = ballTall;
-    if ((x1 + w1) >= x2 && ((y1+h1) >= y2 && y2 > y1)) { //see the png to not forget
-        return true;
+    int x2 = ball.ballX;
+    int y2 = ball.ballY;
+    int w2 = ball.ballWidth;
+    int h2 = ball.ballHeight;
+    if(x2 > x1 && x2 < x1 + w1){
+        if (y2 > y1 && y2 < y1 + h1) {
+            return true;
+        }
     }
     return false;
 }
+
+
+//enemyTouchBall
+bool enemyTouchTheBall() {
+    int x1 = enemy.enemyXposition;
+    int y1 = enemy.enemyYposition;
+    int w1 = enemy.enemyWidth;
+    int h1 = enemy.enemyHeight;
+    int x2 = ball.ballX;
+    int y2 = ball.ballY;
+    int w2 = ball.ballWidth;
+    int h2 = ball.ballHeight;
+
+    if(x2 > x1-w2 && x2 < x1 + w1){
+        if (y2 > y1 && y2 < y1 + h1) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void ballsLogicTick() {
+    //if ball intersection player -> bounds
+    if(touchTheBall()){
+        ball.ballSpeedX = -ball.ballSpeedX;
+    }
+    if(enemyTouchTheBall()){
+        ball.ballSpeedX = -ball.ballSpeedX;
+    }
+    //kick edges
+    if(ball.ballY > 512 - ball.ballHeight  || ball.ballY < 0){
+        ball.ballSpeedY = -ball.ballSpeedY;
+    }
+    if(ball.ballX > 640 - ball.ballWidth || ball.ballX < 0){
+        ball.ballSpeedX = -ball.ballSpeedX;
+    }
+
+    ball.ballX = ball.ballX + ball.ballSpeedX;
+    ball.ballY = ball.ballY + ball.ballSpeedY;
+
+    //enemy point
+    if(ball.ballX < 32){
+
+        enemyPoint++;
+        STATE = "start";
+        printf("points: %d  | enemy points: %d\n",point,enemyPoint);
+    }
+    //player point
+    if(ball.ballX > 640 - 64){
+        point++;
+        STATE = "start";
+        printf("points: %d  | enemy points: %d\n",point,enemyPoint);
+    }
+}
+
 
 int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_VIDEO);
@@ -148,8 +176,12 @@ int main(int argc, char** argv) {
                         player.Move(2);
                     }
                     if(e.key.keysym.sym == SDLK_SPACE){
-                        reset = true;
-                        ballDirection = !ballDirection;
+                        if(STATE == "start"){
+                            STATE = "playing";
+                        }else if(STATE == "playing"){
+                            STATE = "start";
+                        }
+
                     }
                     if(e.key.keysym.sym == SDLK_TAB){
                         ballDirection = !ballDirection;
@@ -179,12 +211,11 @@ int main(int argc, char** argv) {
 
 
         SDL_RenderPresent(renderer);
-        SDL_Delay(1000/60);
+        SDL_Delay(1000/70);
     }
 
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
 }
-
 
