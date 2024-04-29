@@ -1,11 +1,13 @@
 #define SDL_MAIN_HANDLED true
 #include <SDL.h>
+#include <SDL_audio.h>
 #include <chrono>
 #include <iostream>
+#include <thread>
+#include <unistd.h>
 #include "player.h"
 #include "enemy.h"
 #include "Ball.h"
-
 using namespace std::chrono_literals;
 int initialPlayerPositionX = 64;
 int initialPlayerPositionY = 64 + 128;
@@ -25,6 +27,10 @@ int ballY = initialBallPositionY;
 int point = 0;
 int enemyPoint = 0;
 
+int loaded = false;
+
+
+
 
 Ball ball(initialBallPositionX,initialBallPositionY);
 Player player(initialPlayerPositionX,initialPlayerPositionY);
@@ -37,6 +43,7 @@ bool reset = false;
 bool touchTheBall();
 bool enemyTouchTheBall();
 void ballsLogicTick();
+int playSound();
 
 void renderTick(SDL_Renderer *renderer, SDL_Window *window) {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
@@ -74,6 +81,47 @@ void logicTick() {
         ballsLogicTick();
     }
 
+}
+
+std::string getCurrentWorkingDirectory() {
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        return std::string(cwd);
+    } else {
+        return std::string("");
+    }
+}
+
+int playSound(){
+
+    SDL_AudioSpec wav_spec;
+    Uint32 wav_length;
+    Uint8 *wav_buffer;
+
+    std::string currentDir = getCurrentWorkingDirectory();
+    std::string audioFilePath = currentDir + "/hit.wav";
+
+    if (SDL_LoadWAV(audioFilePath.c_str(), &wav_spec, &wav_buffer, &wav_length) == NULL) {
+        fprintf(stderr, "Could not open hit.wav: %s\n", SDL_GetError());
+        return 1;
+    }
+    if(!loaded){
+
+        if (SDL_OpenAudio(&wav_spec, NULL) < 0) {
+            fprintf(stderr, "SDL_OpenAudio failed: %s\n", SDL_GetError());
+            SDL_FreeWAV(wav_buffer);
+            return 1;
+        }
+    }
+    loaded = true;
+    SDL_QueueAudio(1, wav_buffer, wav_length);
+    SDL_PauseAudio(0);
+
+
+    // Liberar o buffer após a reprodução
+    SDL_FreeWAV(wav_buffer);
+
+    return 0;
 }
 
 //playerTouchBall
@@ -118,9 +166,11 @@ void ballsLogicTick() {
     //if ball intersection player -> bounds
     if(touchTheBall()){
         ball.ballSpeedX = -ball.ballSpeedX;
+        playSound();
     }
     if(enemyTouchTheBall()){
         ball.ballSpeedX = -ball.ballSpeedX;
+        playSound();
     }
     //kick edges
     if(ball.ballY > 512 - ball.ballHeight  || ball.ballY < 0){
@@ -151,6 +201,8 @@ void ballsLogicTick() {
 
 int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_VIDEO);
+
+
 
     SDL_Window* window = SDL_CreateWindow(
             "pong",
