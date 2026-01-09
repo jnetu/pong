@@ -45,6 +45,18 @@ bool enemyTouchTheBall();
 void ballsLogicTick();
 int playSound();
 
+
+Uint32 fpsLastTime = 0;
+int fpsFrames = 0;
+
+void printFPS() {
+    fpsFrames++;
+    if (SDL_GetTicks() - fpsLastTime >= 1000) {
+        printf("FPS: %d\n", fpsFrames);
+        fpsFrames = 0;
+        fpsLastTime = SDL_GetTicks();
+    }
+}
 void renderTick(SDL_Renderer *renderer, SDL_Window *window) {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 
@@ -203,7 +215,7 @@ int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_VIDEO);
 
 
-
+SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
     SDL_Window* window = SDL_CreateWindow(
             "pong",
             0,
@@ -216,7 +228,7 @@ int main(int argc, char** argv) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     SDL_Event e;
-
+fpsLastTime = SDL_GetTicks();
     for (;;){
         while (SDL_PollEvent(&e)){
             switch(e.type){
@@ -260,10 +272,10 @@ int main(int argc, char** argv) {
 
         logicTick();
         renderTick(renderer, window);
-
+printFPS();
 
         SDL_RenderPresent(renderer);
-        SDL_Delay(1000/70);
+        //SDL_Delay(1000/70); //lock fps to 70
     }
 
     SDL_DestroyWindow(window);
