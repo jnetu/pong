@@ -51,9 +51,8 @@ int fpsFrames = 0;
 
 void printFPS() {
     fpsFrames++;
-    // Se passou 1 segundo (1000 ms) desde a última contagem
     if (SDL_GetTicks() - fpsLastTime >= 1000) {
-        printf("FPS: %d\n", fpsFrames); // Printa no console
+        printf("FPS: %d\n", fpsFrames);
         fpsFrames = 0;
         fpsLastTime = SDL_GetTicks();
     }
@@ -276,7 +275,7 @@ fpsLastTime = SDL_GetTicks();
 printFPS();
 
         SDL_RenderPresent(renderer);
-        //SDL_Delay(1000/70);
+        //SDL_Delay(1000/70); //lock fps to 70
     }
 
     SDL_DestroyWindow(window);
