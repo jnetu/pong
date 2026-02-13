@@ -9,6 +9,8 @@
 #include "enemy.h"
 #include "Ball.h"
 using namespace std::chrono_literals;
+const bool UNLIMITED_FPS = true;
+const int TARGET_FPS = 60;
 int initialPlayerPositionX = 64;
 int initialPlayerPositionY = 64 + 128;
 int initialEnemyPositionX = 640 - 64 - 32;
@@ -20,31 +22,30 @@ int initialBallPositionX = 320 - (ballLarge/2);
 int initialBallPositionY = 256 - (ballTall/2);
 int ballSpeedX = 8;
 int ballSpeedY = 8;
-bool ballDirection = false; //false -> balls coming2u
-int ballX = initialBallPositionX;
-int ballY = initialBallPositionY;
+bool ballDirection = false;
 
 int point = 0;
 int enemyPoint = 0;
 
-int loaded = false;
+// Sistema de áudio otimizado
+SDL_AudioSpec wav_spec;
+Uint8* wav_buffer = nullptr;
+Uint32 wav_length = 0;
+bool audioLoaded = false;
 
-
-
-
-Ball ball(initialBallPositionX,initialBallPositionY);
-Player player(initialPlayerPositionX,initialPlayerPositionY);
+Ball ball(initialBallPositionX, initialBallPositionY);
+Player player(initialPlayerPositionX, initialPlayerPositionY);
 Enemy enemy(initialEnemyPositionX, initialEnemyPositionY, ball);
 
 enum class state { start, gameover, playing, reset };
-std::string STATE = "start";
+state STATE = state::start;
 bool reset = false;
 
 bool touchTheBall();
 bool enemyTouchTheBall();
-void ballsLogicTick();
-int playSound();
-
+void ballsLogicTick(float deltaTime);
+int loadSound();
+void playSound();
 
 Uint32 fpsLastTime = 0;
 int fpsFrames = 0;
@@ -57,42 +58,28 @@ void printFPS() {
         fpsLastTime = SDL_GetTicks();
     }
 }
+
 void renderTick(SDL_Renderer *renderer, SDL_Window *window) {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-
-    //drawPlayer
     player.PlayerRender(renderer, window);
-    //endDrawPLayer
-
-    //drawEnemy
-    enemy.EnemyRender(renderer,window);
-    //endDrawEnemy
-
-    //Draw ball
+    enemy.EnemyRender(renderer, window);
     ball.BallRender(renderer, window);
-    //end Draw ball
 }
 
-void logicTick() {
-    if(STATE == "start"){
-
-        player.PlayerTick();
+void logicTick(float deltaTime) {
+    if(STATE == state::start){
+        player.PlayerTick(deltaTime);
         enemy.enemyXposition = initialEnemyPositionX;
         enemy.enemyYposition = initialEnemyPositionY;
         ball.ballX = initialBallPositionX;
         ball.ballY = initialBallPositionY;
     }
 
-    if(STATE == "playing"){
-        player.PlayerTick();
-
-        //enemyLogic
-        enemy.EnemyTick(ball);
-
-        //ballLogic
-        ballsLogicTick();
+    if(STATE == state::playing){
+        player.PlayerTick(deltaTime);
+        enemy.EnemyTick(ball, deltaTime);
+        ballsLogicTick(deltaTime);
     }
-
 }
 
 std::string getCurrentWorkingDirectory() {
@@ -104,12 +91,7 @@ std::string getCurrentWorkingDirectory() {
     }
 }
 
-int playSound(){
-
-    SDL_AudioSpec wav_spec;
-    Uint32 wav_length;
-    Uint8 *wav_buffer;
-
+int loadSound(){
     std::string currentDir = getCurrentWorkingDirectory();
     std::string audioFilePath = currentDir + "/hit.wav";
 
@@ -117,26 +99,25 @@ int playSound(){
         fprintf(stderr, "Could not open hit.wav: %s\n", SDL_GetError());
         return 1;
     }
-    if(!loaded){
 
-        if (SDL_OpenAudio(&wav_spec, NULL) < 0) {
-            fprintf(stderr, "SDL_OpenAudio failed: %s\n", SDL_GetError());
-            SDL_FreeWAV(wav_buffer);
-            return 1;
-        }
+    if (SDL_OpenAudio(&wav_spec, NULL) < 0) {
+        fprintf(stderr, "SDL_OpenAudio failed: %s\n", SDL_GetError());
+        SDL_FreeWAV(wav_buffer);
+        return 1;
     }
-    loaded = true;
-    SDL_QueueAudio(1, wav_buffer, wav_length);
-    SDL_PauseAudio(0);
 
-
-    // Liberar o buffer após a reprodução
-    SDL_FreeWAV(wav_buffer);
-
+    audioLoaded = true;
     return 0;
 }
 
-//playerTouchBall
+void playSound(){
+    if(audioLoaded && wav_buffer != nullptr){
+        SDL_ClearQueuedAudio(1);
+        SDL_QueueAudio(1, wav_buffer, wav_length);
+        SDL_PauseAudio(0);
+    }
+}
+
 bool touchTheBall() {
     int x1 = player.playerXposition;
     int y1 = player.playerYposition;
@@ -146,6 +127,7 @@ bool touchTheBall() {
     int y2 = ball.ballY;
     int w2 = ball.ballWidth;
     int h2 = ball.ballHeight;
+
     if(x2 > x1 && x2 < x1 + w1){
         if (y2 > y1 && y2 < y1 + h1) {
             return true;
@@ -154,8 +136,6 @@ bool touchTheBall() {
     return false;
 }
 
-
-//enemyTouchBall
 bool enemyTouchTheBall() {
     int x1 = enemy.enemyXposition;
     int y1 = enemy.enemyYposition;
@@ -174,48 +154,49 @@ bool enemyTouchTheBall() {
     return false;
 }
 
-void ballsLogicTick() {
-    //if ball intersection player -> bounds
+void ballsLogicTick(float deltaTime) {
+    ball.ballX = ball.ballX + (ball.ballSpeedX * TARGET_FPS * deltaTime);
+    ball.ballY = ball.ballY + (ball.ballSpeedY * TARGET_FPS * deltaTime);
     if(touchTheBall()){
         ball.ballSpeedX = -ball.ballSpeedX;
+        ball.ballX = player.playerXposition + player.playerWidth + 1;
         playSound();
     }
     if(enemyTouchTheBall()){
         ball.ballSpeedX = -ball.ballSpeedX;
+        ball.ballX = enemy.enemyXposition - ball.ballWidth - 1;
         playSound();
     }
-    //kick edges
-    if(ball.ballY > 512 - ball.ballHeight  || ball.ballY < 0){
+    if(ball.ballY > 512 - ball.ballHeight){
         ball.ballSpeedY = -ball.ballSpeedY;
+        ball.ballY = 512 - ball.ballHeight;
     }
-    if(ball.ballX > 640 - ball.ballWidth || ball.ballX < 0){
-        ball.ballSpeedX = -ball.ballSpeedX;
+    if(ball.ballY < 0){
+        ball.ballSpeedY = -ball.ballSpeedY;
+        ball.ballY = 0;
     }
 
-    ball.ballX = ball.ballX + ball.ballSpeedX;
-    ball.ballY = ball.ballY + ball.ballSpeedY;
 
-    //enemy point
     if(ball.ballX < 32){
-
         enemyPoint++;
-        STATE = "start";
-        printf("points: %d  | enemy points: %d\n",point,enemyPoint);
+        STATE = state::start;
+        printf("points: %d | enemy points: %d\n", point, enemyPoint);
     }
-    //player point
     if(ball.ballX > 640 - 64){
         point++;
-        STATE = "start";
-        printf("points: %d  | enemy points: %d\n",point,enemyPoint);
+        STATE = state::start;
+        printf("points: %d | enemy points: %d\n", point, enemyPoint);
     }
 }
 
-
 int main(int argc, char** argv) {
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
-
-SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+    if(!UNLIMITED_FPS){
+        SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+    } else {
+        SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+    }
     SDL_Window* window = SDL_CreateWindow(
             "pong",
             0,
@@ -227,9 +208,17 @@ SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
+    loadSound();
     SDL_Event e;
-fpsLastTime = SDL_GetTicks();
+    fpsLastTime = SDL_GetTicks();
+    Uint32 lastTime = SDL_GetTicks();
     for (;;){
+        Uint32 currentTime = SDL_GetTicks();
+        float deltaTime = (currentTime - lastTime) / 1000.0f;
+        lastTime = currentTime;
+        if(deltaTime > 0.25f) deltaTime = 0.016f;
+        if(deltaTime < 0.0001f) deltaTime = 0.0001f;
+
         while (SDL_PollEvent(&e)){
             switch(e.type){
                 case SDL_KEYDOWN:
@@ -240,12 +229,11 @@ fpsLastTime = SDL_GetTicks();
                         player.Move(2);
                     }
                     if(e.key.keysym.sym == SDLK_SPACE){
-                        if(STATE == "start"){
-                            STATE = "playing";
-                        }else if(STATE == "playing"){
-                            STATE = "start";
+                        if(STATE == state::start){
+                            STATE = state::playing;
+                        }else if(STATE == state::playing){
+                            STATE = state::start;
                         }
-
                     }
                     if(e.key.keysym.sym == SDLK_TAB){
                         ballDirection = !ballDirection;
@@ -260,26 +248,32 @@ fpsLastTime = SDL_GetTicks();
                     }
                     break;
                 case SDL_QUIT:
+                    if(wav_buffer) SDL_FreeWAV(wav_buffer);
+                    SDL_CloseAudio();
                     return 0;
                 default:
                     break;
             }
-
-
         }
+
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        logicTick();
+        logicTick(deltaTime);
         renderTick(renderer, window);
-printFPS();
+        printFPS();
 
         SDL_RenderPresent(renderer);
-        //SDL_Delay(1000/70); //lock fps to 70
+
+        if(!UNLIMITED_FPS){
+            Uint32 frameTime = SDL_GetTicks() - currentTime;
+            if(frameTime < 1000 / TARGET_FPS){
+                SDL_Delay((1000 / TARGET_FPS) - frameTime);
+            }
+        }
     }
 
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
 }
-
