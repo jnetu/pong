@@ -43,17 +43,16 @@ void Player::PlayerRender(SDL_Renderer *renderer, SDL_Window *window) {
     //draw player
     //set color white
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_Rect rP = {playerXposition, playerYposition, playerWidth, playerHeight};
+    SDL_Rect rP = {(int)playerXposition, (int)playerYposition, playerWidth, playerHeight};
     SDL_RenderFillRect(renderer, &rP);
     //end draw Player
 }
 
-void Player::PlayerTick() {
     //move logic
+void Player::PlayerTick(float deltaTime) {
     if (playerMoveUP && playerYposition > 0) {
-        playerYposition = playerYposition - playerSpeed;
+        playerYposition = playerYposition - (playerSpeed * 60 * deltaTime);
     } else if (playerMoveDOWN && playerYposition < 512 - playerHeight) {
-        playerYposition = playerYposition + playerSpeed;
+        playerYposition = playerYposition + (playerSpeed * 60 * deltaTime);
     }
-
 }

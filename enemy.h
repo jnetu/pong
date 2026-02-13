@@ -9,18 +9,15 @@ public:
     int enemyWidth;
     int enemyHeight;
     int enemySpeed;
-    int enemyXposition;
-    int enemyYposition;
+    float enemyXposition;
+    float enemyYposition;
     bool enemyMoveUP;
     bool enemyMoveDOWN;
-    Ball referenceBall;
+    Ball& referenceBall;
 
-    Enemy(int x, int y, Ball referenceBall);
-
+    Enemy(int x, int y, Ball& referenceBall);
     void EnemyRender(SDL_Renderer *renderer, SDL_Window *window);
-
-    void EnemyTick(Ball ball);
+    void EnemyTick(const Ball& ball, float deltaTime); // const ref + deltaTime
 };
 
-
-#endif //PONG_ENEMY_H
+#endif

@@ -9,8 +9,8 @@ public:
     int ballHeight;
     int ballSpeedX;
     int ballSpeedY;
-    int ballX;
-    int ballY;
+    float ballX;
+    float ballY;
 
     Ball(int x, int y);
     void BallRender(SDL_Renderer *renderer, SDL_Window *window);

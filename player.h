@@ -9,8 +9,8 @@ public:
     int playerWidth;
     int playerHeight;
     int playerSpeed;
-    int playerXposition;
-    int playerYposition;
+    float  playerXposition;
+    float  playerYposition;
     bool playerMoveUP;
     bool playerMoveDOWN;
 
@@ -22,7 +22,7 @@ public:
 
     void PlayerRender(SDL_Renderer *renderer, SDL_Window *window);
 
-    void PlayerTick();
+    void PlayerTick(float deltaTime);
 };
 
 #endif //PONG_PLAYER_H

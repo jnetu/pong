@@ -10,7 +10,7 @@ Ball::Ball(int x, int y){
 }
 
 void Ball::BallRender(SDL_Renderer *renderer, SDL_Window *window){
-    SDL_Rect ball = {ballX,ballY,ballWidth,ballHeight};
+    SDL_Rect ball = {(int)ballX, (int)ballY, ballWidth, ballHeight};
     SDL_RenderFillRect(renderer, &ball);
 }
 
